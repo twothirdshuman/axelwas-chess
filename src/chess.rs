@@ -88,7 +88,7 @@ impl Default for Color {
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum PieceTypes {
-    Pawn,
+    Pawn {passantable: bool} ,
     Rock,
     Bishop,
     Knight,
@@ -98,7 +98,7 @@ pub enum PieceTypes {
 
 impl Default for PieceTypes {
     fn default() -> Self {
-        PieceTypes::Pawn
+        PieceTypes::Pawn {passantable: false} 
     }
 }
 
@@ -107,7 +107,7 @@ pub struct Piece {
     piece_type: PieceTypes,
     place: Place,
     color: Color,
-    last_moved: u64
+    last_moved: usize
 }
 
 impl Default for Piece {
@@ -246,25 +246,54 @@ impl Piece {
         moves.into_iter().filter(|s| !s.outside_board()).collect()
     }
 
+    fn pawn_moves(&self) -> Vec<Place> {
+        let new_row = match self.color {
+            Color::Black => self.place.row + 1,
+            Color::White => self.place.row.saturating_sub(1),
+        };
+
+        if new_row >= 8 || new_row == 0{
+            return vec![];
+        }
+        return vec![Place {
+            row: new_row,
+            file: self.place.file
+        }];
+    }
+    
+    fn pawn_specials(&self, position: Position) {
+        
+    }
+    
+    fn king_specials(&self, position: Position) {
+
+    }
+
     pub fn moves(&self, position: Position) {
         let nonspecial_moves = match self.piece_type {
             PieceTypes::Bishop => self.bishop_moves(),
             PieceTypes::Rock => self.rock_moves(),
             PieceTypes::Queen => self.queen_moves(),
-            PieceTypes::Pawn => todo!(),
+            PieceTypes::Pawn {..} => self.pawn_moves(),
             PieceTypes::Knight => self.knight_moves(),
             PieceTypes::King => self.king_moves()
         };
 
         // special pawn and king
+        
+        let specials = match self.piece_type {
+            PieceTypes::Pawn {..} => self.pawn_specials(position),
+            PieceTypes::King => self.king_specials(position),
+            _ => Vec::new()
+        };
 
         let obstacles_filtered = match (nonspecial_moves, &self.piece_type) {
             (m, PieceTypes::Bishop) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
             (m, PieceTypes::Rock) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
             (m, PieceTypes::Queen) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
-            (m, PieceTypes::Pawn) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::Pawn {..}) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::King) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
             (m, PieceTypes::Knight) => m,
-            (m, PieceTypes::King) => m
         };
 
         // filter moving onto oneself
@@ -338,13 +367,13 @@ impl Position {
             'b' => vec![Some((Color::Black, PieceTypes::Bishop))],
             'q' => vec![Some((Color::Black, PieceTypes::Queen))],
             'k' => vec![Some((Color::Black, PieceTypes::King))],
-            'p' => vec![Some((Color::Black, PieceTypes::Pawn))],
+            'p' => vec![Some((Color::Black, PieceTypes::Pawn {passantable: false}))],
             'R' => vec![Some((Color::White, PieceTypes::Rock))],
             'N' => vec![Some((Color::White, PieceTypes::Knight))],
             'B' => vec![Some((Color::White, PieceTypes::Bishop))],
             'Q' => vec![Some((Color::White, PieceTypes::Queen))],
             'K' => vec![Some((Color::White, PieceTypes::King))],
-            'P' => vec![Some((Color::White, PieceTypes::Pawn))],
+            'P' => vec![Some((Color::White, PieceTypes::Pawn {passantable: false}))],
             _ => vec![],
         }).collect();
 
