@@ -1,6 +1,6 @@
 use std::{iter, slice::Iter};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Place {
     row: usize,
     file: usize
@@ -9,6 +9,68 @@ pub struct Place {
 impl Default for Place {
     fn default() -> Self {
         Place { row: 0, file: 0 }
+    }
+}
+
+impl Place {
+    fn outside_board(&self) -> bool {
+        if self.row > 8 {
+            return true;
+        }
+        if self.file > 8 {
+            return true;
+        }
+        false
+    }
+    fn goto(&self, to: &Self) -> Move {
+        Move {
+            to: *to,
+            from: *self,
+            promotion: None
+        }
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub struct Move {
+    from: Place,
+    to: Place,
+    promotion: Option<PieceTypes>
+}
+
+impl Move {
+    fn in_between_squares(&self) -> Vec<Place> {
+        let diff_x = self.from.file.abs_diff(self.to.file);
+        let diff_y = self.from.row.abs_diff(self.to.row);
+
+        if diff_x != diff_y {
+            if diff_x != 0 || diff_y != 0 {
+                return vec![];
+            }
+        }
+
+        let to_add_x: isize = match (diff_x, self.from.file.checked_sub(self.to.file)) {
+            (0, _) => 0,
+            (_, Some(_)) => 1,
+            (_, None) => -1
+        };
+
+        let to_add_y: isize = match (diff_y, self.from.row.checked_sub(self.to.row)) {
+            (0, _) => 0,
+            (_, Some(_)) => 1,
+            (_, None) => -1
+        };
+
+        let mut ret = Vec::new();
+        let to = diff_x.max(diff_y).try_into().unwrap_or(isize::MAX);
+        for n in 1..to {
+            ret.push(Place { 
+                row: self.from.row.saturating_add_signed(to_add_y * n), 
+                file: self.from.file.saturating_add_signed(to_add_x * n),
+            });
+        }
+            
+        ret
     }
 }
 
@@ -24,7 +86,7 @@ impl Default for Color {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum PieceTypes {
     Pawn,
     Rock,
@@ -68,6 +130,145 @@ impl Piece {
             color
         }
     }
+
+
+
+    fn bishop_moves(&self) -> Vec<Place> {
+        let mut moves = Vec::new();
+        let own_row = self.place.row;
+        let own_file = self.place.file;
+
+
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file.saturating_sub(8)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file.saturating_add(8)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_add(8)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_sub(8)}).in_between_squares());
+        
+        moves.into_iter().filter(|s| !s.outside_board()).collect()
+    }
+
+    fn rock_moves(&self) -> Vec<Place> {
+        let mut moves = Vec::new();
+        let own_row = self.place.row;
+        let own_file = self.place.file;
+        
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_add(8)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_sub(8)}).in_between_squares());
+        
+        moves.into_iter().filter(|s| !s.outside_board()).collect()
+    }
+
+    fn queen_moves(&self) -> Vec<Place> {
+        let mut rock = self.rock_moves();
+        rock.extend(self.bishop_moves());
+        rock
+    }
+
+    fn king_moves(&self) -> Vec<Place> {
+        let own_row = self.place.row;
+        let own_file = self.place.file;
+
+        let moves = vec![Place {
+            row: own_row + 1,
+            file: own_file + 1
+        },
+        Place {
+            row: own_row + 1,
+            file: own_file
+        },
+        Place {
+            row: own_row + 1,
+            file: own_file.wrapping_sub(1)
+        },
+        Place {
+            row: own_row,
+            file: own_file.wrapping_sub(1)
+        },
+        Place {
+            row: own_row.wrapping_sub(1),
+            file: own_file.wrapping_sub(1)
+        },
+        Place {
+            row: own_row.wrapping_sub(1),
+            file: own_file
+        },
+        Place {
+            row: own_row.wrapping_sub(1),
+            file: own_file + 1
+        },
+        Place {
+            row: own_row,
+            file: own_file + 1
+        }];
+
+        moves.into_iter().filter(|s| !s.outside_board()).collect()
+    }
+
+    fn knight_moves(&self) -> Vec<Place> {
+        let own_row = self.place.row;
+        let own_file = self.place.file;
+
+        let moves = vec![Place {
+            row: own_row + 2,
+            file: own_file + 1
+        },
+        Place {
+            row: own_row + 1,
+            file: own_file + 2
+        },
+        Place {
+            row: own_row.wrapping_sub(2),
+            file: own_file.wrapping_sub(1)
+        },
+        Place {
+            row: own_row.wrapping_sub(1),
+            file: own_file.wrapping_sub(2)
+        },
+        Place {
+            row: own_row + 1,
+            file: own_file.wrapping_sub(2)
+        },
+        Place {
+            row: own_row + 2,
+            file: own_file.wrapping_sub(1)
+        },
+        Place {
+            row: own_row.wrapping_sub(1),
+            file: own_file + 2
+        },
+        Place {
+            row: own_row.wrapping_sub(2),
+            file: own_file + 1
+        }];
+
+        moves.into_iter().filter(|s| !s.outside_board()).collect()
+    }
+
+    pub fn moves(&self, position: Position) {
+        let nonspecial_moves = match self.piece_type {
+            PieceTypes::Bishop => self.bishop_moves(),
+            PieceTypes::Rock => self.rock_moves(),
+            PieceTypes::Queen => self.queen_moves(),
+            PieceTypes::Pawn => todo!(),
+            PieceTypes::Knight => self.knight_moves(),
+            PieceTypes::King => self.king_moves()
+        };
+
+        // special pawn and king
+
+        let obstacles_filtered = match (nonspecial_moves, &self.piece_type) {
+            (m, PieceTypes::Bishop) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::Rock) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::Queen) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::Pawn) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
+            (m, PieceTypes::Knight) => m,
+            (m, PieceTypes::King) => m
+        };
+
+        // filter moving onto oneself
+    }
 }
 pub enum Square {
     Empty,
@@ -89,6 +290,27 @@ pub struct Position {
 
 
 impl Position {
+
+    fn theres_obstacle(&self, from: &Place, to: &Place) -> bool {
+        let between = from.goto(to).in_between_squares();
+
+        for sq in between {
+            if let Some(_) = self.piece_on(&sq) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn piece_on(&self, square: &Place) -> Option<&Piece> {
+        for piece in &self.pieces {
+            if piece.place == *square {
+                return Some(piece);
+            }
+        }
+        None
+    }
 
     /// This function is made in honor of @ecogreen123
     pub fn from_fen(fen: &str) -> Option<Self> {
