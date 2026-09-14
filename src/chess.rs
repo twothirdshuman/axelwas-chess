@@ -14,10 +14,10 @@ impl Default for Place {
 
 impl Place {
     fn outside_board(&self) -> bool {
-        if self.row > 8 {
+        if self.row >= 8 {
             return true;
         }
-        if self.file > 8 {
+        if self.file >= 8 {
             return true;
         }
         false
@@ -74,7 +74,7 @@ impl Move {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
     Black
@@ -260,9 +260,109 @@ impl Piece {
             file: self.place.file
         }];
     }
-    
-    fn pawn_specials(&self, position: Position) {
+
+    fn pawn_specials(&self, position: Position) -> Vec<Move> {
+        let mut candidates: Vec<Place> = Vec::new();
         
+        let forward: isize = match self.color {
+            Color::Black => 1,
+            Color::White => -1
+        };
+
+        let determine_pawn_capture = |towards: Place| {
+            if position.piece_on(&towards).is_some_and(|f| f.color != self.color) {
+                return true;
+            }
+
+            let passant_square = Place {
+                row: towards.row.saturating_sub_signed(forward),
+                file: towards.file
+            };
+
+            position.piece_on(&passant_square).is_some_and(|p| match p.piece_type {
+                PieceTypes::Pawn { passantable: true } => true,
+                _ => false
+            })
+        };
+
+        let capture_right = Place {
+            file: self.place.file + 1,
+            row: self.place.row.saturating_add_signed(forward)
+        };
+
+        let capture_left = Place {
+            file: self.place.file.wrapping_sub(1),
+            row: self.place.row.saturating_add_signed(forward)
+        };
+
+        if determine_pawn_capture(capture_right) {
+            candidates.push(capture_right);
+        }
+
+        if determine_pawn_capture(capture_left) {
+            candidates.push(capture_left);
+        }
+
+        let just_forward = Place {
+            file: self.place.file,
+            row: self.place.row.saturating_add_signed(forward)
+        };
+
+        if just_forward.row == 0 || just_forward.row == 7 {
+            candidates.push(just_forward);
+        }
+
+        let mut moves = Vec::new();
+
+        for candidate in candidates {
+            if candidate.row == 0 || candidate.row == 7 {
+                moves.push(Move { 
+                    from: self.place, 
+                    to: candidate, 
+                    promotion: Some(PieceTypes::Bishop) 
+                });
+                moves.push(Move { 
+                    from: self.place, 
+                    to: candidate, 
+                    promotion: Some(PieceTypes::Knight) 
+                });
+                moves.push(Move { 
+                    from: self.place, 
+                    to: candidate, 
+                    promotion: Some(PieceTypes::Queen) 
+                });
+                moves.push(Move { 
+                    from: self.place, 
+                    to: candidate, 
+                    promotion: Some(PieceTypes::Rock) 
+                });
+                continue;
+            }
+            moves.push(Move {
+                from: self.place,
+                to: candidate,
+                promotion: None,
+            });
+        }
+
+        if self.last_moved != 0 {
+            return moves;
+        }
+        
+        let candidate_move = Place {
+            file: self.place.file,
+            row: self.place.row.saturating_add_signed(forward.saturating_mul(2)),
+        };
+
+        if !(position.theres_obstacle(&self.place, &candidate_move) || position.piece_on(&candidate_move).is_some()) {
+            moves.push(Move {
+                from: self.place,
+                to: candidate_move,
+                promotion: None
+            })
+        }
+
+        moves.into_iter().filter(|s| !s.to.outside_board()).collect()
     }
     
     fn king_specials(&self, position: Position) {
