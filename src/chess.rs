@@ -74,7 +74,7 @@ impl Move {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
     Black
@@ -84,6 +84,15 @@ impl Default for Color {
     fn default() -> Self {
         Self::White
     }
+}
+
+impl Color {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Color::Black => Color::White,
+            Color::White => Color::Black
+        }
+    } 
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
@@ -102,7 +111,7 @@ impl Default for PieceTypes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Piece {
     piece_type: PieceTypes,
     place: Place,
@@ -131,7 +140,39 @@ impl Piece {
         }
     }
 
+    fn into_char(&self) -> char {
+        match (self.color, self.piece_type) {
+            (Color::White, PieceTypes::King) => '♔',
+            (Color::White, PieceTypes::Queen) => '♕',
+            (Color::White, PieceTypes::Rock) => '♖',
+            (Color::White, PieceTypes::Bishop) => '♗',
+            (Color::White, PieceTypes::Knight) => '♘',
+            (Color::White, PieceTypes::Pawn { .. }) => '♙',
+            (Color::Black, PieceTypes::King) => '♚',
+            (Color::Black, PieceTypes::Queen) => '♛',
+            (Color::Black, PieceTypes::Rock) => '♜',
+            (Color::Black, PieceTypes::Bishop) => '♝',
+            (Color::Black, PieceTypes::Knight) => '♞',
+            (Color::Black, PieceTypes::Pawn { .. }) => '♟',
+        }
+    }
 
+    fn into_ascii(&self) -> char {
+        match (self.color, self.piece_type) {
+            (Color::White, PieceTypes::Pawn { .. }) => 'P',
+            (Color::White, PieceTypes::Rock) => 'R',
+            (Color::White, PieceTypes::Bishop) => 'B',
+            (Color::White, PieceTypes::Knight) => 'N',
+            (Color::White, PieceTypes::Queen) => 'Q',
+            (Color::White, PieceTypes::King) => 'K',
+            (Color::Black, PieceTypes::Pawn { .. }) => 'p',
+            (Color::Black, PieceTypes::Rock) => 'r',
+            (Color::Black, PieceTypes::Bishop) => 'b',
+            (Color::Black, PieceTypes::Knight) => 'n',
+            (Color::Black, PieceTypes::Queen) => 'q',
+            (Color::Black, PieceTypes::King) => 'k',
+        }
+    }
 
     fn bishop_moves(&self) -> Vec<Place> {
         let mut moves = Vec::new();
@@ -166,7 +207,7 @@ impl Piece {
         rock
     }
 
-    fn king_moves(&self) -> Vec<Place> {
+    fn king_moves_basic(&self) -> Vec<Place> {
         let own_row = self.place.row;
         let own_file = self.place.file;
 
@@ -261,7 +302,7 @@ impl Piece {
         }];
     }
 
-    fn pawn_specials(&self, position: Position) -> Vec<Move> {
+    fn pawn_specials(&self, position: &Position) -> Vec<Move> {
         let mut candidates: Vec<Place> = Vec::new();
         
         let forward: isize = match self.color {
@@ -364,26 +405,60 @@ impl Piece {
 
         moves.into_iter().filter(|s| !s.to.outside_board()).collect()
     }
-    
-    fn king_specials(&self, position: Position) {
 
+
+    fn king_moves(&self, position: &Position) -> Vec<Move> {
+        let mut moves = self.king_moves_basic();
+
+        if self.last_moved != 0 {
+            let left_rock = position.piece_on(&Place { row: self.place.row, file: 0 });
+            if left_rock.is_some_and(|p| p.color == self.color && p.piece_type == PieceTypes::Rock && p.last_moved == 0) {
+                moves.push(Place { row: self.place.row, file: self.place.file - 2 });
+            }
+            let right_rock = position.piece_on(&Place { row: self.place.row, file: 7 });
+            if right_rock.is_some_and(|p| p.color == self.color && p.piece_type == PieceTypes::Rock && p.last_moved == 0) {
+                moves.push(Place { row: self.place.row, file: self.place.file + 2 });
+            }
+        }
+        
+        let mut ret = vec![];
+
+        let attacking: Vec<Place> = position.moves_from_without_king(self.color.opposite()).into_iter().map(|m| m.to).collect();
+        for pl in moves {
+            if let Some(extra) = self.place.goto(&pl).in_between_squares().pop() {
+                if attacking.contains(&extra) {
+                    continue;
+                }
+                if position.piece_on(&extra).is_some() {
+                    continue;
+                }
+            }
+            if !attacking.contains(&pl) {
+                ret.push(Move {
+                    from: self.place,
+                    to: pl,
+                    promotion: None
+                });
+            }
+        }
+
+        ret.into_iter().filter(|m| !position.piece_on(&m.to).is_some_and(|pi| pi.color == self.color)).collect()
     }
 
-    pub fn moves(&self, position: Position) {
+    pub fn moves(&self, position: &Position) -> Vec<Move>{
         let nonspecial_moves = match self.piece_type {
             PieceTypes::Bishop => self.bishop_moves(),
             PieceTypes::Rock => self.rock_moves(),
             PieceTypes::Queen => self.queen_moves(),
             PieceTypes::Pawn {..} => self.pawn_moves(),
             PieceTypes::Knight => self.knight_moves(),
-            PieceTypes::King => self.king_moves()
+            PieceTypes::King => { return self.king_moves(&position); }
         };
 
         // special pawn and king
         
         let specials = match self.piece_type {
             PieceTypes::Pawn {..} => self.pawn_specials(position),
-            PieceTypes::King => self.king_specials(position),
             _ => Vec::new()
         };
 
@@ -397,6 +472,13 @@ impl Piece {
         };
 
         // filter moving onto oneself
+
+        obstacles_filtered
+            .into_iter()
+            .filter(|pl| !position.piece_on(pl).is_some_and(|p| p.color == self.color))
+            .map(|pl| Move { from: self.place, to: pl, promotion: None})
+            .chain(specials.into_iter())
+            .collect()
     }
 }
 pub enum Square {
@@ -410,9 +492,10 @@ impl Default for Square {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Position {
     turn: Color,
+    move_number: usize,
     pieces: Vec<Piece>
 }
 
@@ -441,7 +524,60 @@ impl Position {
         None
     }
 
-    /// This function is made in honor of @ecogreen123
+    fn moves_from_without_king(&self, color: Color) -> Vec<Move>{
+        let mut moves = Vec::new();
+        
+        for piece in &self.pieces {
+            if piece.color != color {
+                continue;
+            }
+            if piece.piece_type == PieceTypes::King {
+                continue;
+            }
+            moves.extend(piece.moves(self));
+        }
+
+        moves
+    }
+
+    pub fn all_moves_from(&self, color: Color) -> Vec<Move> {
+        let mut moves = Vec::new();
+        for piece in &self.pieces {
+            if piece.color != color {
+                continue;
+            }
+
+            moves.extend(piece.moves(self));
+        }
+        
+        moves
+    }
+
+    // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
+    pub fn execute_move(mut self, to_move: Move) -> Result<Self, Self> {
+        // naive implmentation
+
+        let moving_piece = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.from);
+        let (index, _) = match moving_piece {
+            None => return Err(self),
+            Some(p) => p
+        };
+
+        let moving_piece = self.pieces.get_mut(index).expect("impossible");
+        self.move_number = self.move_number + 1;
+        moving_piece.last_moved = self.move_number;
+        moving_piece.place = to_move.to;
+
+        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
+            self.pieces.remove(index);
+        }
+
+        self.turn = self.turn.opposite();
+
+        Ok(self)
+    }
+
+    /// This function is made in honor of @ecogreen123 (context: was joking around in VC while coding)
     pub fn from_fen(fen: &str) -> Option<Self> {
         let turn = match fen.contains("b") {
             true => Color::Black,
@@ -485,13 +621,29 @@ impl Position {
 
         let pieces = flat_board.into_iter().enumerate().filter_map(|(i, p)| match p {
             None => None,
-            Some((c, t)) => Some(Piece::create(t, Place { row: i % 8, file: i / 8 }, c))
+            Some((c, t)) => Some(Piece::create(t, Place { row: i / 8, file: i % 8 }, c))
         }).collect();
 
-        Some(Position {
+        dbg!(Some(Position {
             turn,
+            move_number: 0,
             pieces
-        })
+        }))
+    }
+
+    pub fn print_position(&self) {
+        for row in 0..8 {
+            for file in 0..8 {
+                print!("{}", self.pieces
+                    .iter()
+                    .filter(|p| p.place == Place { row, file })
+                    .map(|p| p.into_char())
+                    .next()
+                    .unwrap_or('.'));
+                
+            }
+            println!();
+        }
     }
 }
 
