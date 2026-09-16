@@ -1,6 +1,6 @@
 use std::{collections::HashSet, hash::Hash};
 
-use crate::chess::{self, Color::{self, *}, Move, Piece, PieceTypes::{self, *}, Place, Position};
+use crate::chess::{self, Color::{self, *}, EndStates, Move, Piece, PieceTypes::{self, *}, Place, Position};
 
 #[test]
 fn setup() {
@@ -102,4 +102,38 @@ fn in_check() {
     assert!(same_unique_elements(&moves, pos.all_moves().as_slice()));
 
 
+}
+
+#[test]
+fn checkmate() {
+    let pos = Position::default();
+
+    let pos = pos.execute_move_checked(Move::from_str("e2e4").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("e7e5").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("f1c4").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("b8c6").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("d1h5").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("g8f6").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("h5f7").unwrap());
+
+    assert!(pos.game_end() == EndStates::Checkmate);
+}
+
+#[test]
+fn stalemate() {
+    let pos = Position::from_fen("3k4/1R5P/3N4/4K3/2p2P2/p7/P7/8 w - - 0 51").unwrap();
+    pos.print_position();
+    let pos = pos.execute_move_checked(Move::from_str("d6c4").unwrap());
+    pos.print_position();
+    let pos = pos.execute_move_checked(Move::from_str("d8c8").unwrap());
+    pos.print_position();
+    let pos = pos.execute_move_checked(Move::from_str("c4d6").unwrap());
+    pos.print_position();
+    let pos = pos.execute_move_checked(Move::from_str("c8d8").unwrap());
+    pos.print_position();
+    let pos = pos.execute_move_checked(Move::from_str("e5e6").unwrap());
+
+    pos.print_position();
+
+    assert!(pos.game_end() == EndStates::Stalemate);
 }

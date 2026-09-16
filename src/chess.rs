@@ -334,22 +334,7 @@ impl Piece {
         moves.into_iter().filter(|s| !s.outside_board()).collect()
     }
 
-    fn pawn_moves(&self) -> Vec<Place> {
-        let new_row = match self.color {
-            Color::Black => self.place.row + 1,
-            Color::White => self.place.row.saturating_sub(1),
-        };
-
-        if new_row >= 7 || new_row == 0{
-            return vec![];
-        }
-        return vec![Place {
-            row: new_row,
-            file: self.place.file
-        }];
-    }
-
-    fn pawn_specials(&self, position: &Position) -> Vec<Move> {
+    fn pawn_moves(&self, position: &Position) -> Vec<Move> {
         let mut candidates: Vec<Place> = Vec::new();
         
         let forward: isize = match self.color {
@@ -396,9 +381,10 @@ impl Piece {
             row: self.place.row.saturating_add_signed(forward)
         };
 
-        if just_forward.row == 0 || just_forward.row == 7 {
+        if position.piece_on(&just_forward).is_none() {
             candidates.push(just_forward);
         }
+        
 
         let mut moves = Vec::new();
 
@@ -505,7 +491,7 @@ impl Piece {
             PieceTypes::Bishop => self.bishop_moves(),
             PieceTypes::Rock => self.rock_moves(),
             PieceTypes::Queen => self.queen_moves(),
-            PieceTypes::Pawn {..} => self.pawn_moves(),
+            PieceTypes::Pawn {..} => Vec::new(),
             PieceTypes::Knight => self.knight_moves(),
             PieceTypes::King => { return self.king_moves(&position); }
         };
@@ -513,7 +499,7 @@ impl Piece {
         // special pawn and king
         
         let specials = match self.piece_type {
-            PieceTypes::Pawn {..} => self.pawn_specials(position),
+            PieceTypes::Pawn {..} => self.pawn_moves(position),
             _ => Vec::new()
         };
 
@@ -561,9 +547,32 @@ pub struct Position {
     pieces: Vec<Piece>
 }
 
-
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EndStates {
+    Checkmate,
+    Stalemate,
+    None
+}
 
 impl Position {
+
+    pub fn game_end(&self) -> EndStates {
+        let check = self.in_check(self.turn);
+        let moves = self.all_moves();
+
+        dbg!(check);
+        dbg!(&moves);
+
+        if check && moves.len() == 0 {
+            return EndStates::Checkmate;
+        }
+
+        if moves.len() == 0 {
+            return EndStates::Stalemate;
+        }
+
+        return EndStates::None;
+    }
 
     pub fn in_check(&self, color: Color) -> bool {
         let king = self.pieces.iter().filter(|p| p.color == color && p.piece_type == PieceTypes::King).next();
@@ -752,7 +761,6 @@ impl Position {
 
     // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
     pub fn execute_move(self, to_move: Move) -> Result<Self, Self> {
-        self.print_position();
 
         let piece = self.piece_on(&to_move.from);
         let piece = match piece {
