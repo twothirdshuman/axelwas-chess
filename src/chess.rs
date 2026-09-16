@@ -29,6 +29,41 @@ impl Place {
             promotion: None
         }
     }
+    fn from_str(s: &str) -> Option<Self> {
+        if s.len() != 2 {
+            return None;
+        }
+
+        let mut chars = s.chars();
+        let letter = chars.next();
+        let num = chars.next();
+
+        let file = match letter.map(|c| c.to_ascii_uppercase()) {
+            Some('A') => 0,
+            Some('B') => 1,
+            Some('C') => 2,
+            Some('D') => 3,
+            Some('E') => 4,
+            Some('F') => 5,
+            Some('G') => 6,
+            Some('H') => 7,
+            _ => return None
+        };
+
+        let row = match num.map(|n| n.to_digit(10))?? {
+            1 => 7,
+            2 => 6,
+            3 => 5,
+            4 => 4,
+            5 => 3,
+            6 => 2,
+            7 => 1,
+            8 => 0,
+            _ => return None
+        };
+
+        Some(Place { row, file })
+    }
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
@@ -42,6 +77,10 @@ impl Move {
     fn in_between_squares(&self) -> Vec<Place> {
         let diff_x = self.from.file.abs_diff(self.to.file);
         let diff_y = self.from.row.abs_diff(self.to.row);
+
+        if diff_x != 0 && diff_y != 0 {
+            dbg!();
+        }
 
         if diff_x != diff_y {
             if !(diff_x == 0 || diff_y == 0) {
@@ -71,6 +110,12 @@ impl Move {
         }
             
         ret
+    }
+    fn from_str(s: &str) -> Option<Self> {
+        if s.len() != 4 {
+            return None;
+        }
+        Some(Place::from_str(&s[0..2])?.goto(&Place::from_str(&s[2..4])?))
     }
 }
 
@@ -293,7 +338,7 @@ impl Piece {
             Color::White => self.place.row.saturating_sub(1),
         };
 
-        if new_row >= 8 || new_row == 0{
+        if new_row >= 7 || new_row == 0{
             return vec![];
         }
         return vec![Place {
@@ -386,7 +431,7 @@ impl Piece {
             });
         }
 
-        if self.last_moved != 0 {
+        if !(self.last_moved == 0 && (self.place.row == 6 || self.place.row == 1)) {
             return moves;
         }
         
@@ -520,6 +565,17 @@ impl Position {
         None
     }
 
+    fn piece_on_mut(&mut self, square: Place) -> Option<&mut Piece> {
+        for p in &mut self.pieces {
+            if p.place != square {
+                continue;
+            }
+
+            return Some(p)
+        }
+        None
+    }
+
     fn moves_from_without_king(&self, color: Color) -> Vec<Move>{
         let mut moves = Vec::new();
         
@@ -549,11 +605,7 @@ impl Position {
         moves
     }
 
-    // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
-    pub fn execute_move(mut self, to_move: Move) -> Result<Self, Self> {
-        // naive implmentation
-
-        
+    fn move_and_capture(mut self, to_move: Move) -> Result<Self, Self> {
         if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
             self.pieces.remove(index);
         }
@@ -575,11 +627,78 @@ impl Position {
         Ok(self)
     }
 
+    fn move_pawn_before_promotion(mut self, to_move: Move) -> Result<Self, Self>{
+        match self.piece_on_mut(to_move.from) {
+            Some(p) => p.piece_type = PieceTypes::Pawn { passantable: to_move.from.row.abs_diff(to_move.to.row) == 2 },
+            None => return Err(self)
+        }
+
+        if to_move.from.file.abs_diff(to_move.to.file) == 0 {
+            return self.move_and_capture(to_move);
+        }
+        match self.piece_on(&to_move.to) {
+            Some(_) => return self.move_and_capture(to_move),
+            None => ()
+        };
+        dbg!();
+        // here must be passant 
+        let mut to_capture = to_move.to;
+        to_capture.row = to_move.from.row;
+        let piece_to_capture = dbg!(self.piece_on(&to_capture));
+        let piece_to_capture = match piece_to_capture {
+            Some(p) if p.piece_type == PieceTypes::Pawn { passantable: true } => p,
+            _ => return Err(self)
+        };
+
+        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == piece_to_capture.place) {
+            self.pieces.remove(index);
+        }
+
+        self.move_and_capture(to_move)
+    }
+
+    fn move_pawn(self, to_move: Move) -> Result<Self, Self> {
+        let mut ret = self.move_pawn_before_promotion(to_move)?;
+        let promoting_to = match to_move.promotion {
+            Some(p) => p,
+            None => return Ok(ret),
+        };
+
+        let to_promote = ret.piece_on_mut(to_move.to).expect("if successfully moved then this doesnt fail");
+        to_promote.piece_type = promoting_to;
+
+        return Ok(ret);
+    }
+    
+    // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
+    pub fn execute_move(self, to_move: Move) -> Result<Self, Self> {
+        // naive implmentation
+        self.print_position();
+
+        let piece = self.piece_on(&to_move.from);
+        let piece = match piece {
+            Some(p) => p,
+            None => return Err(self)
+        };
+
+        match piece.piece_type {
+            PieceTypes::King => todo!(),
+            PieceTypes::Pawn { .. } => self.move_pawn(to_move),
+            _ => self.move_and_capture(to_move)
+        }
+    }
+
+    fn execute_move_checked(self, to_move: Move) -> Self {
+        let all_moves = self.all_moves_from(self.turn);
+        assert!(all_moves.contains(&to_move));
+        self.execute_move(to_move).unwrap()
+    }
+
     /// This function is made in honor of @ecogreen123 (context: was joking around in VC while coding)
     pub fn from_fen(fen: &str) -> Option<Self> {
-        let turn = match fen.contains("b") {
-            true => Color::Black,
-            false => Color::White
+        let turn = match fen.contains("w") {
+            false => Color::Black,
+            true => Color::White
         };
 
         let board_rep = match fen.split(" ").next() {
