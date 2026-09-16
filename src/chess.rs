@@ -1,6 +1,6 @@
 use std::{iter, slice::Iter};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Place {
     row: usize,
     file: usize
@@ -31,7 +31,7 @@ impl Place {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     from: Place,
     to: Place,
@@ -74,7 +74,7 @@ impl Move {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Color {
     White,
     Black
@@ -95,7 +95,7 @@ impl Color {
     } 
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub enum PieceTypes {
     Pawn {passantable: bool} ,
     Rock,
@@ -111,7 +111,7 @@ impl Default for PieceTypes {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Piece {
     piece_type: PieceTypes,
     place: Place,
@@ -553,15 +553,16 @@ impl Position {
     pub fn execute_move(mut self, to_move: Move) -> Result<Self, Self> {
         // naive implmentation
 
+        
+        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
+            self.pieces.remove(index);
+        }
+
         let moving_piece = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.from);
         let (index, _) = match moving_piece {
             None => return Err(self),
             Some(p) => p
         };
-
-        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
-            self.pieces.remove(index);
-        }
 
         let moving_piece = self.pieces.get_mut(index).expect("impossible");
         self.move_number = self.move_number + 1;
@@ -610,8 +611,6 @@ impl Position {
             _ => vec![],
         }).collect();
 
-        println!("{}",flat_board.len());
-
         if flat_board.len() != 64 {
             return None;
         }
@@ -621,11 +620,11 @@ impl Position {
             Some((c, t)) => Some(Piece::create(t, Place { row: i / 8, file: i % 8 }, c))
         }).collect();
 
-        dbg!(Some(Position {
+        Some(Position {
             turn,
             move_number: 0,
             pieces
-        }))
+        })
     }
 
     pub fn print_position(&self) {
@@ -650,3 +649,7 @@ impl Default for Position {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 }
+
+#[cfg(test)]
+#[path = "chess_tests.rs"]
+mod tests;
