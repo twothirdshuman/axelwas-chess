@@ -1,7 +1,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Place {
-    row: usize,
-    file: usize
+    pub row: usize,
+    pub file: usize
 }
 
 impl Default for Place {
@@ -20,7 +20,7 @@ impl Place {
         }
         false
     }
-    fn goto(&self, to: &Self) -> Move {
+    pub fn goto(&self, to: &Self) -> Move {
         Move {
             to: *to,
             from: *self,
@@ -110,6 +110,11 @@ impl Move {
             return None;
         }
         Some(Place::from_str(&s[0..2])?.goto(&Place::from_str(&s[2..4])?))
+    }
+
+    pub fn into_promotion(mut self, promotion: Option<PieceTypes>) -> Self {
+        self.promotion = promotion;
+        self
     }
 }
 
@@ -586,7 +591,7 @@ impl Position {
             .fold(false, |r, sq| r || (sq == king.place))
     }
     
-    fn legal_position(&self) -> bool {
+    pub fn legal_position(&self) -> bool {
         let white_king = self.pieces.iter().filter(|p| p.color == Color::White && p.piece_type == PieceTypes::King).next();
         let black_king = self.pieces.iter().filter(|p| p.color == Color::Black && p.piece_type == PieceTypes::King).next();
 
@@ -610,7 +615,7 @@ impl Position {
         false
     }
 
-    fn piece_on(&self, square: &Place) -> Option<&Piece> {
+    pub fn piece_on(&self, square: &Place) -> Option<&Piece> {
         for piece in &self.pieces {
             if piece.place == *square {
                 return Some(piece);
