@@ -83,5 +83,23 @@ fn test_castling() {
     let pos = pos.execute_move_checked(Move::from_str("e1g1").unwrap());
     let pos = pos.execute_move_checked(Move::from_str("e8c8").unwrap());
     
-    pos.print_position();
+    let correct = [Piece { piece_type: Rock, place: Place { row: 0, file: 3 }, color: Black, last_moved: 9 }, Piece { piece_type: Knight, place: Place { row: 2, file: 2 }, color: Black, last_moved: 8 }, Piece { piece_type: Bishop, place: Place { row: 1, file: 3 }, color: Black, last_moved: 6 }, Piece { piece_type: Queen, place: Place { row: 3, file: 3 }, color: Black, last_moved: 4 }, Piece { piece_type: King, place: Place { row: 0, file: 2 }, color: Black, last_moved: 10 }, Piece { piece_type: Bishop, place: Place { row: 0, file: 5 }, color: Black, last_moved: 0 }, Piece { piece_type: Knight, place: Place { row: 0, file: 6 }, color: Black, last_moved: 0 }, Piece { piece_type: Rock, place: Place { row: 0, file: 7 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 0 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 1 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 2 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 4 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 5 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 6 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 1, file: 7 }, color: Black, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 0 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 1 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 2 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 3 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 5 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 6 }, color: White, last_moved: 0 }, Piece { piece_type: Pawn { passantable: false }, place: Place { row: 6, file: 7 }, color: White, last_moved: 0 }, Piece { piece_type: Rock, place: Place { row: 7, file: 0 }, color: White, last_moved: 0 }, Piece { piece_type: Knight, place: Place { row: 7, file: 1 }, color: White, last_moved: 0 }, Piece { piece_type: Bishop, place: Place { row: 7, file: 2 }, color: White, last_moved: 0 }, Piece { piece_type: Queen, place: Place { row: 7, file: 3 }, color: White, last_moved: 0 }, Piece { piece_type: King, place: Place { row: 7, file: 6 }, color: White, last_moved: 9 }, Piece { piece_type: Bishop, place: Place { row: 5, file: 3 }, color: White, last_moved: 5 }, Piece { piece_type: Knight, place: Place { row: 5, file: 5 }, color: White, last_moved: 7 }, Piece { piece_type: Rock, place: Place { row: 7, file: 5 }, color: White, last_moved: 8 }];
+
+    assert!(same_unique_elements(&correct, &pos.pieces));
+}
+
+#[test]
+fn in_check() {
+    let pos = Position::default();
+
+    let pos = pos.execute_move_checked(Move::from_str("e2e4").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("c7c6").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("f1c4").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("g8f6").unwrap());
+    let pos = pos.execute_move_checked(Move::from_str("c4f7").unwrap());
+    
+    let moves = [Move { from: Place { row: 0, file: 4 }, to: Place { row: 1, file: 5 }, promotion: None }];
+    assert!(same_unique_elements(&moves, pos.all_moves().as_slice()));
+
+
 }

@@ -1,4 +1,4 @@
-use std::{iter, slice::Iter};
+use std::{collections::vec_deque, iter, slice::Iter};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Place {
@@ -222,10 +222,15 @@ impl Piece {
 
         let max_back = own_file.min(own_row);
 
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(max_back), file: own_file.saturating_sub(max_back)}).in_between_squares());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(own_row), file: own_file.saturating_add(own_row)}).in_between_squares());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_add(8)}).in_between_squares());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(own_file), file: own_file.saturating_sub(own_file)}).in_between_squares());
+        let top_left = Place { row: own_row.saturating_sub(max_back), file: own_file.saturating_sub(max_back)};
+        let bottom_left = Place { row: own_row.saturating_add(own_file), file: own_file.saturating_sub(own_file)};
+        let top_right = Place { row: own_row.saturating_sub(own_row), file: own_file.saturating_add(own_row)};
+            
+        moves.extend(self.place.goto(&top_left).in_between_squares());
+        moves.extend(self.place.goto(&top_right).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(9), file: own_file.saturating_add(9)}).in_between_squares());
+        moves.extend(self.place.goto(&bottom_left).in_between_squares());
+        moves.extend(vec![top_left, top_right, bottom_left]);
 
         moves.into_iter().filter(|s| !s.outside_board()).collect()
     }
@@ -495,7 +500,7 @@ impl Piece {
         ret.into_iter().filter(|m| !position.piece_on(&m.to).is_some_and(|pi| pi.color == self.color)).collect()
     }
 
-    pub fn moves(&self, position: &Position) -> Vec<Move>{
+    pub fn moves_disregard_check(&self, position: &Position) -> Vec<Move>{
         let nonspecial_moves = match self.piece_type {
             PieceTypes::Bishop => self.bishop_moves(),
             PieceTypes::Rock => self.rock_moves(),
@@ -525,6 +530,17 @@ impl Piece {
             .map(|pl| Move { from: self.place, to: pl, promotion: None})
             .chain(specials.into_iter())
             .collect()
+
+    }
+
+    pub fn moves(&self, position: &Position) -> Vec<Move> {
+        let all_moves = self.moves_disregard_check(position);
+        all_moves.into_iter().filter(|m| {
+            match position.clone().execute_move(*m) {
+                Ok(p) => p.legal_position(),
+                Err(_) => false
+            }
+        }).collect()
     }
 }
 pub enum Square {
@@ -548,6 +564,32 @@ pub struct Position {
 
 
 impl Position {
+
+    pub fn in_check(&self, color: Color) -> bool {
+        let king = self.pieces.iter().filter(|p| p.color == color && p.piece_type == PieceTypes::King).next();
+        let king = match king {
+            Some(k) => k,
+            None => return false
+        };
+
+        self.pieces
+            .iter()
+            .flat_map(|p| p.moves_disregard_check(self).into_iter())
+            .map(|m| m.to)
+            .fold(false, |r, sq| r || (sq == king.place))
+    }
+    
+    fn legal_position(&self) -> bool {
+        let white_king = self.pieces.iter().filter(|p| p.color == Color::White && p.piece_type == PieceTypes::King).next();
+        let black_king = self.pieces.iter().filter(|p| p.color == Color::Black && p.piece_type == PieceTypes::King).next();
+
+        match (white_king, black_king) {
+            (Some(_), Some(_)) => (),
+            _ => return false
+        };
+
+        return !self.in_check(self.turn.opposite());
+    }
 
     fn theres_obstacle(&self, from: &Place, to: &Place) -> bool {
         let between = from.goto(to).in_between_squares();
@@ -591,13 +633,13 @@ impl Position {
             if piece.piece_type == PieceTypes::King {
                 continue;
             }
-            moves.extend(piece.moves(self));
+            moves.extend(piece.moves_disregard_check(self));
         }
 
         moves
     }
 
-    pub fn all_moves_from(&self, color: Color) -> Vec<Move> {
+    fn all_moves_from(&self, color: Color) -> Vec<Move> {
         let mut moves = Vec::new();
         for piece in &self.pieces {
             if piece.color != color {
@@ -608,6 +650,10 @@ impl Position {
         }
         
         moves
+    }
+
+    pub fn all_moves(&self) -> Vec<Move> {
+        self.all_moves_from(self.turn)
     }
 
     fn move_and_capture(mut self, to_move: Move) -> Result<Self, Self> {
