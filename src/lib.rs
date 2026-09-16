@@ -1,5 +1,3 @@
-use std::{collections::vec_deque, iter, slice::Iter};
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Place {
     row: usize,
@@ -29,7 +27,7 @@ impl Place {
             promotion: None
         }
     }
-    fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         if s.len() != 2 {
             return None;
         }
@@ -107,7 +105,7 @@ impl Move {
             
         ret
     }
-    fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Option<Self> {
         if s.len() != 4 {
             return None;
         }
@@ -181,7 +179,7 @@ impl Piece {
         }
     }
 
-    fn into_char(&self) -> char {
+    pub fn into_char(&self) -> char {
         match (self.color, self.piece_type) {
             (Color::White, PieceTypes::King) => '♔',
             (Color::White, PieceTypes::Queen) => '♕',
@@ -198,7 +196,7 @@ impl Piece {
         }
     }
 
-    fn into_ascii(&self) -> char {
+    pub fn into_ascii(&self) -> char {
         match (self.color, self.piece_type) {
             (Color::White, PieceTypes::Pawn { .. }) => 'P',
             (Color::White, PieceTypes::Rock) => 'R',
@@ -775,6 +773,7 @@ impl Position {
         }
     }
 
+    #[cfg(test)]
     fn execute_move_checked(self, to_move: Move) -> Self {
         let all_moves = self.all_moves_from(self.turn);
         assert!(all_moves.contains(&to_move));
