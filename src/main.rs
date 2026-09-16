@@ -11,5 +11,6 @@ fn main() {
         println!("{:?}", m);
         position.clone().execute_move(m).unwrap().print_position();
         println!();
+
     }
 }

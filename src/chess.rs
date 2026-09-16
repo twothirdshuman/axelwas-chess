@@ -44,21 +44,21 @@ impl Move {
         let diff_y = self.from.row.abs_diff(self.to.row);
 
         if diff_x != diff_y {
-            if diff_x != 0 || diff_y != 0 {
+            if !(diff_x == 0 || diff_y == 0) {
                 return vec![];
             }
         }
 
         let to_add_x: isize = match (diff_x, self.from.file.checked_sub(self.to.file)) {
             (0, _) => 0,
-            (_, Some(_)) => 1,
-            (_, None) => -1
+            (_, Some(_)) => -1,
+            (_, None) => 1
         };
 
         let to_add_y: isize = match (diff_y, self.from.row.checked_sub(self.to.row)) {
             (0, _) => 0,
-            (_, Some(_)) => 1,
-            (_, None) => -1
+            (_, Some(_)) => -1,
+            (_, None) => 1
         };
 
         let mut ret = Vec::new();
@@ -463,12 +463,8 @@ impl Piece {
         };
 
         let obstacles_filtered = match (nonspecial_moves, &self.piece_type) {
-            (m, PieceTypes::Bishop) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
-            (m, PieceTypes::Rock) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
-            (m, PieceTypes::Queen) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
-            (m, PieceTypes::Pawn {..}) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
-            (m, PieceTypes::King) => m.into_iter().filter(|pl| position.theres_obstacle(&self.place, pl)).collect(),
             (m, PieceTypes::Knight) => m,
+            (m, _) => m.into_iter().filter(|pl| !position.theres_obstacle(&self.place, pl)).collect(),
         };
 
         // filter moving onto oneself
@@ -563,14 +559,15 @@ impl Position {
             Some(p) => p
         };
 
+        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
+            self.pieces.remove(index);
+        }
+
         let moving_piece = self.pieces.get_mut(index).expect("impossible");
         self.move_number = self.move_number + 1;
         moving_piece.last_moved = self.move_number;
         moving_piece.place = to_move.to;
 
-        if let Some((index, _capturing_piece)) = self.pieces.iter().enumerate().find(|(_, p)| p.place == to_move.to) {
-            self.pieces.remove(index);
-        }
 
         self.turn = self.turn.opposite();
 
@@ -632,6 +629,7 @@ impl Position {
     }
 
     pub fn print_position(&self) {
+        
         for row in 0..8 {
             for file in 0..8 {
                 print!("{}", self.pieces
