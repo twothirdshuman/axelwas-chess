@@ -78,10 +78,6 @@ impl Move {
         let diff_x = self.from.file.abs_diff(self.to.file);
         let diff_y = self.from.row.abs_diff(self.to.row);
 
-        if diff_x != 0 && diff_y != 0 {
-            dbg!();
-        }
-
         if diff_x != diff_y {
             if !(diff_x == 0 || diff_y == 0) {
                 return vec![];
@@ -224,12 +220,13 @@ impl Piece {
         let own_row = self.place.row;
         let own_file = self.place.file;
 
+        let max_back = own_file.min(own_row);
 
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file.saturating_sub(8)}).in_between_squares());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file.saturating_add(8)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(max_back), file: own_file.saturating_sub(max_back)}).in_between_squares());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(own_row), file: own_file.saturating_add(own_row)}).in_between_squares());
         moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_add(8)}).in_between_squares());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_sub(8)}).in_between_squares());
-        
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(own_file), file: own_file.saturating_sub(own_file)}).in_between_squares());
+
         moves.into_iter().filter(|s| !s.outside_board()).collect()
     }
 
@@ -454,8 +451,7 @@ impl Piece {
 
     fn king_moves(&self, position: &Position) -> Vec<Move> {
         let mut moves = self.king_moves_basic();
-
-        if self.last_moved != 0 {
+        if self.last_moved == 0 {
             let left_rock = position.piece_on(&Place { row: self.place.row, file: 0 });
             if left_rock.is_some_and(|p| p.color == self.color && p.piece_type == PieceTypes::Rock && p.last_moved == 0) {
                 moves.push(Place { row: self.place.row, file: self.place.file - 2 });
@@ -468,7 +464,16 @@ impl Piece {
         
         let mut ret = vec![];
 
-        let attacking: Vec<Place> = position.moves_from_without_king(self.color.opposite()).into_iter().map(|m| m.to).collect();
+        let mut attacking: Vec<Place> = position.moves_from_without_king(self.color.opposite())
+            .into_iter()
+            .map(|m| m.to)
+            .collect();
+
+        let opposite_king = position.pieces.iter().filter(|p| p.color == self.color.opposite() && p.piece_type == PieceTypes::King).next();
+        if let Some(k) = opposite_king {
+            attacking.extend(k.king_moves_basic());
+        }
+
         for pl in moves {
             if let Some(extra) = self.place.goto(&pl).in_between_squares().pop() {
                 if attacking.contains(&extra) {
@@ -646,7 +651,7 @@ impl Position {
         to_capture.row = to_move.from.row;
         let piece_to_capture = dbg!(self.piece_on(&to_capture));
         let piece_to_capture = match piece_to_capture {
-            Some(p) if p.piece_type == PieceTypes::Pawn { passantable: true } => p,
+            Some(p) if p.piece_type == PieceTypes::Pawn { passantable: true } && p.last_moved == self.move_number => p,
             _ => return Err(self)
         };
 
@@ -670,9 +675,37 @@ impl Position {
         return Ok(ret);
     }
     
+    fn move_king(mut self, to_move: Move) -> Result<Self, Self> {
+        let movenr = self.move_number;
+        
+        let diff_x = to_move.to.file.abs_diff(to_move.from.file);
+        if diff_x != 2 {
+            return self.move_and_capture(to_move);
+        }
+
+        let (to_left, rock) = match to_move.to.file {
+            2 => (true, self.piece_on_mut(Place { row: to_move.to.row, file: 0 })),
+            6 => (false, self.piece_on_mut(Place { row: to_move.to.row, file: 7})),
+            _ => return Err(self)
+        };
+
+        let rock = match rock {
+            Some(p) => p,
+            None => return Err(self)
+        };
+
+        if to_left {
+            rock.place.file = rock.place.file + 3;
+        } else {
+            rock.place.file = rock.place.file - 2;
+        }
+        rock.last_moved = movenr;
+
+        self.move_and_capture(to_move)
+    }
+
     // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
     pub fn execute_move(self, to_move: Move) -> Result<Self, Self> {
-        // naive implmentation
         self.print_position();
 
         let piece = self.piece_on(&to_move.from);
@@ -682,7 +715,7 @@ impl Position {
         };
 
         match piece.piece_type {
-            PieceTypes::King => todo!(),
+            PieceTypes::King => self.move_king(to_move),
             PieceTypes::Pawn { .. } => self.move_pawn(to_move),
             _ => self.move_and_capture(to_move)
         }

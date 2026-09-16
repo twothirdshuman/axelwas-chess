@@ -76,7 +76,6 @@ fn test_castling() {
     let pos = pos.execute_move_checked(Move::from_str("d7d5").unwrap());
     let pos = pos.execute_move_checked(Move::from_str("e4d5").unwrap());
     let pos = pos.execute_move_checked(Move::from_str("d8d5").unwrap());
-    pos.print_position();
     let pos = pos.execute_move_checked(Move::from_str("f1d3").unwrap());
     let pos = pos.execute_move_checked(Move::from_str("c8d7").unwrap());
     let pos = pos.execute_move_checked(Move::from_str("g1f3").unwrap());
