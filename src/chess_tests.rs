@@ -177,3 +177,10 @@ fn doc6() {
     println!("{:?}", position.in_check(Color::White));
     assert!(position.in_check(Color::White));
 } 
+
+#[test]
+fn doc7() {
+    let position = Position::default();
+
+    println!("{:?}", position.pieces);
+} 

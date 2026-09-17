@@ -82,3 +82,12 @@ fn main() {
     println!("{}", position.in_check(Color::White));
 }
 ```
+
+If you need all pices and don't wanna check each square individually with ```Position::piece_on``` you can access the vector pices on Position.
+
+```rust
+fn main() {
+    let position = Position::default();
+
+    println!("{:?}", position.pieces);
+}
