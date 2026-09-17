@@ -62,6 +62,34 @@ impl Place {
 
         Some(Place { row, file })
     }
+
+    /// returns None if it is an invalid Place, as in outside the board
+    pub fn into_str(&self) -> Option<[char; 2]> {
+        Some([
+            match self.file {
+                0 => 'A',
+                1 => 'B',
+                2 => 'C',
+                3 => 'D',
+                4 => 'E',
+                5 => 'F',
+                6 => 'G',
+                7 => 'H',
+                _ => return None
+            },
+            match self.row {
+                0 => '8',
+                1 => '7',
+                2 => '6',
+                3 => '5',
+                4 => '4',
+                5 => '3',
+                6 => '2',
+                7 => '1',
+                _ => return None
+            }
+        ])
+    }
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
@@ -157,9 +185,9 @@ impl Default for PieceTypes {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Piece {
-    piece_type: PieceTypes,
-    place: Place,
-    color: Color,
+    pub piece_type: PieceTypes,
+    pub place: Place,
+    pub color: Color,
     last_moved: usize
 }
 
@@ -346,7 +374,7 @@ impl Piece {
         };
 
         let determine_pawn_capture = |towards: Place| {
-            if position.piece_on(&towards).is_some_and(|f| f.color != self.color) {
+            if position.piece_on(towards).is_some_and(|f| f.color != self.color) {
                 return true;
             }
 
@@ -355,7 +383,7 @@ impl Piece {
                 file: towards.file
             };
 
-            position.piece_on(&passant_square).is_some_and(|p| match p.piece_type {
+            position.piece_on(passant_square).is_some_and(|p| match p.piece_type {
                 PieceTypes::Pawn { passantable: true } => true,
                 _ => false
             })
@@ -384,7 +412,7 @@ impl Piece {
             row: self.place.row.saturating_add_signed(forward)
         };
 
-        if position.piece_on(&just_forward).is_none() {
+        if position.piece_on(just_forward).is_none() {
             candidates.push(just_forward);
         }
         
@@ -431,7 +459,7 @@ impl Piece {
             row: self.place.row.saturating_add_signed(forward.saturating_mul(2)),
         };
 
-        if !(position.theres_obstacle(&self.place, &candidate_move) || position.piece_on(&candidate_move).is_some()) {
+        if !(position.theres_obstacle(&self.place, &candidate_move) || position.piece_on(candidate_move).is_some()) {
             moves.push(Move {
                 from: self.place,
                 to: candidate_move,
@@ -446,11 +474,11 @@ impl Piece {
     fn king_moves(&self, position: &Position) -> Vec<Move> {
         let mut moves = self.king_moves_basic();
         if self.last_moved == 0 {
-            let left_rock = position.piece_on(&Place { row: self.place.row, file: 0 });
+            let left_rock = position.piece_on(Place { row: self.place.row, file: 0 });
             if left_rock.is_some_and(|p| p.color == self.color && p.piece_type == PieceTypes::Rock && p.last_moved == 0) {
                 moves.push(Place { row: self.place.row, file: self.place.file - 2 });
             }
-            let right_rock = position.piece_on(&Place { row: self.place.row, file: 7 });
+            let right_rock = position.piece_on(Place { row: self.place.row, file: 7 });
             if right_rock.is_some_and(|p| p.color == self.color && p.piece_type == PieceTypes::Rock && p.last_moved == 0) {
                 moves.push(Place { row: self.place.row, file: self.place.file + 2 });
             }
@@ -473,7 +501,7 @@ impl Piece {
                 if attacking.contains(&extra) {
                     continue;
                 }
-                if position.piece_on(&extra).is_some() {
+                if position.piece_on(extra).is_some() {
                     continue;
                 }
             }
@@ -486,7 +514,7 @@ impl Piece {
             }
         }
 
-        ret.into_iter().filter(|m| !position.piece_on(&m.to).is_some_and(|pi| pi.color == self.color)).collect()
+        ret.into_iter().filter(|m| !position.piece_on(m.to).is_some_and(|pi| pi.color == self.color)).collect()
     }
 
     pub fn moves_disregard_check(&self, position: &Position) -> Vec<Move>{
@@ -515,7 +543,7 @@ impl Piece {
 
         obstacles_filtered
             .into_iter()
-            .filter(|pl| !position.piece_on(pl).is_some_and(|p| p.color == self.color))
+            .filter(|pl| !position.piece_on(*pl).is_some_and(|p| p.color == self.color))
             .map(|pl| Move { from: self.place, to: pl, promotion: None})
             .chain(specials.into_iter())
             .collect()
@@ -547,7 +575,7 @@ impl Default for Square {
 pub struct Position {
     turn: Color,
     move_number: usize,
-    pieces: Vec<Piece>
+    pub pieces: Vec<Piece>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -607,7 +635,7 @@ impl Position {
         let between = from.goto(to).in_between_squares();
 
         for sq in between {
-            if let Some(_) = self.piece_on(&sq) {
+            if let Some(_) = self.piece_on(sq) {
                 return true;
             }
         }
@@ -615,9 +643,9 @@ impl Position {
         false
     }
 
-    pub fn piece_on(&self, square: &Place) -> Option<&Piece> {
+    pub fn piece_on(&self, square: Place) -> Option<&Piece> {
         for piece in &self.pieces {
-            if piece.place == *square {
+            if piece.place == square {
                 return Some(piece);
             }
         }
@@ -651,7 +679,8 @@ impl Position {
         moves
     }
 
-    fn all_moves_from(&self, color: Color) -> Vec<Move> {
+    /// return all possible moves from specified color
+    pub fn all_moves_from(&self, color: Color) -> Vec<Move> {
         let mut moves = Vec::new();
         for piece in &self.pieces {
             if piece.color != color {
@@ -664,6 +693,7 @@ impl Position {
         moves
     }
 
+    /// returns all possible moves from whose turn it is.
     pub fn all_moves(&self) -> Vec<Move> {
         self.all_moves_from(self.turn)
     }
@@ -699,15 +729,15 @@ impl Position {
         if to_move.from.file.abs_diff(to_move.to.file) == 0 {
             return self.move_and_capture(to_move);
         }
-        match self.piece_on(&to_move.to) {
+        match self.piece_on(to_move.to) {
             Some(_) => return self.move_and_capture(to_move),
             None => ()
         };
-        dbg!();
+
         // here must be passant 
         let mut to_capture = to_move.to;
         to_capture.row = to_move.from.row;
-        let piece_to_capture = dbg!(self.piece_on(&to_capture));
+        let piece_to_capture = self.piece_on(to_capture);
         let piece_to_capture = match piece_to_capture {
             Some(p) if p.piece_type == PieceTypes::Pawn { passantable: true } && p.last_moved == self.move_number => p,
             _ => return Err(self)
@@ -765,7 +795,7 @@ impl Position {
     // returns Ok(Self) if move could be implemented and Err(Self) if not possible, then it returns itself
     pub fn execute_move(self, to_move: Move) -> Result<Self, Self> {
 
-        let piece = self.piece_on(&to_move.from);
+        let piece = self.piece_on(to_move.from);
         let piece = match piece {
             Some(p) => p,
             None => return Err(self)
@@ -778,8 +808,7 @@ impl Position {
         }
     }
 
-    #[cfg(test)]
-    fn execute_move_checked(self, to_move: Move) -> Self {
+    pub fn execute_move_checked(self, to_move: Move) -> Self {
         let all_moves = self.all_moves_from(self.turn);
         assert!(all_moves.contains(&to_move));
         self.execute_move(to_move).unwrap()
