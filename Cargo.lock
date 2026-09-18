@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "chess-lib"
+name = "axelwas-chess"
 version = "0.1.0"
