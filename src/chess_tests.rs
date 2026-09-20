@@ -185,7 +185,7 @@ fn doc4() {
 #[test]
 fn doc5() {
     let position = Position::from_fen("3k4/1R5P/3N4/4K3/2p2P2/p7/P7/8 w - - 0 51").unwrap();
-    position.print_position();
+    println!("{}", position);
 }
 
 #[test]

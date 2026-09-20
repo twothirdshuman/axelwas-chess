@@ -69,7 +69,7 @@ Instead of having the standard position you can also use FEN to specify a positi
 ```rust 
 fn main() {
     let position = Position::from_fen("3k4/1R5P/3N4/4K3/2p2P2/p7/P7/8 w - - 0 51").unwrap();
-    position.print_position();
+    println!("{}", position);
 }
 ```
 
