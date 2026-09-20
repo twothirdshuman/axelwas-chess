@@ -147,6 +147,16 @@ fn rook_bishop() {
 }
 
 #[test]
+fn place_default() {
+    assert!(Place::default() == Place { row: 0, file: 0 })
+}
+
+#[test]
+fn color_default() {
+    assert!(Color::default() == Color::White);
+}
+
+#[test]
 fn doc1() {
     let position = Position::default();
     

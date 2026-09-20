@@ -1,13 +1,7 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct Place {
     pub row: usize,
     pub file: usize
-}
-
-impl Default for Place {
-    fn default() -> Self {
-        Place { row: 0, file: 0 }
-    }
 }
 
 impl Place {
@@ -155,16 +149,10 @@ impl Move {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum Color {
-    White,
+    #[default] White,
     Black
-}
-
-impl Default for Color {
-    fn default() -> Self {
-        Self::White
-    }
 }
 
 impl Color {
@@ -192,23 +180,12 @@ impl Default for PieceTypes {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Default)]
 pub struct Piece {
     pub piece_type: PieceTypes,
     pub place: Place,
     pub color: Color,
     last_moved: usize
-}
-
-impl Default for Piece {
-    fn default() -> Self {
-        Self { 
-            piece_type: PieceTypes::default(), 
-            place: Place::default(), 
-            color: Color::default(), 
-            last_moved: 0 
-        }
-    }
 }
 
 impl Piece {
@@ -569,16 +546,13 @@ impl Piece {
         }).collect()
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Square {
-    Empty,
+    #[default] Empty,
     Piece(Piece)
 }
 
-impl Default for Square {
-    fn default() -> Self {
-        Self::Empty
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Position {
