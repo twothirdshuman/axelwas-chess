@@ -122,18 +122,18 @@ fn checkmate() {
 #[test]
 fn stalemate() {
     let pos = Position::from_fen("3k4/1R5P/3N4/4K3/2p2P2/p7/P7/8 w - - 0 51").unwrap();
-    pos.print_position();
+    println!("{}", pos);
     let pos = pos.execute_move_checked(Move::from_str("d6c4").unwrap());
-    pos.print_position();
+    println!("{}", pos);
     let pos = pos.execute_move_checked(Move::from_str("d8c8").unwrap());
-    pos.print_position();
+    println!("{}", pos);
     let pos = pos.execute_move_checked(Move::from_str("c4d6").unwrap());
-    pos.print_position();
+    println!("{}", pos);
     let pos = pos.execute_move_checked(Move::from_str("c8d8").unwrap());
-    pos.print_position();
+    println!("{}", pos);
     let pos = pos.execute_move_checked(Move::from_str("e5e6").unwrap());
 
-    pos.print_position();
+    println!("{}", pos);
 
     assert!(pos.game_end() == EndStates::Stalemate);
 }
@@ -163,7 +163,7 @@ fn doc1() {
     let possible_moves = position.all_moves();
     let new_position = position.execute_move(possible_moves[0]).unwrap();
 
-    new_position.print_position();
+    println!("{}", new_position);
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn doc3() {
     let position = Position::default();
     let position = position.execute_move(Move::from_str("e2e4").unwrap()).unwrap();
 
-    position.print_position();
+    println!("{}", position);
 }
 
 #[test]

@@ -847,12 +847,20 @@ impl Position {
             pieces
         })
     }
+}
 
-    pub fn print_position(&self) {
+impl Default for Position {
+    fn default() -> Self {
+        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+    }
+}
+
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         
         for row in 0..8 {
             for file in 0..8 {
-                print!("{}", self.pieces
+                write!(f, "{}", self.pieces
                     .iter()
                     .filter(|p| p.place == Place { row, file })
                     .map(|p| p.into_char())
@@ -860,14 +868,9 @@ impl Position {
                     .unwrap_or('.'));
                 
             }
-            println!();
+            write!(f, "\n");
         }
-    }
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+        Ok(())
     }
 }
 
