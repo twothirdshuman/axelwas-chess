@@ -4,6 +4,46 @@ pub struct Place {
     pub file: usize
 }
 
+impl TryFrom<&str> for Place {
+    type Error = ();
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        if s.len() != 2 {
+            return Err(());
+        }
+
+        let mut chars = s.chars();
+        let letter = chars.next();
+        let num = chars.next();
+
+        let file = match letter.map(|c| c.to_ascii_uppercase()) {
+            Some('A') => 0,
+            Some('B') => 1,
+            Some('C') => 2,
+            Some('D') => 3,
+            Some('E') => 4,
+            Some('F') => 5,
+            Some('G') => 6,
+            Some('H') => 7,
+            _ => return Err(())
+        };
+
+        let row = match num.map(|n| n.to_digit(10)).ok_or(())?.ok_or(())? {
+            1 => 7,
+            2 => 6,
+            3 => 5,
+            4 => 4,
+            5 => 3,
+            6 => 2,
+            7 => 1,
+            8 => 0,
+            _ => return Err(())
+        };
+
+        Ok(Place { row, file })
+    }
+}
+
 impl Place {
     fn outside_board(&self) -> bool {
         if self.row >= 8 {
@@ -20,41 +60,6 @@ impl Place {
             from: *self,
             promotion: None
         }
-    }
-    pub fn from_str(s: &str) -> Option<Self> {
-        if s.len() != 2 {
-            return None;
-        }
-
-        let mut chars = s.chars();
-        let letter = chars.next();
-        let num = chars.next();
-
-        let file = match letter.map(|c| c.to_ascii_uppercase()) {
-            Some('A') => 0,
-            Some('B') => 1,
-            Some('C') => 2,
-            Some('D') => 3,
-            Some('E') => 4,
-            Some('F') => 5,
-            Some('G') => 6,
-            Some('H') => 7,
-            _ => return None
-        };
-
-        let row = match num.map(|n| n.to_digit(10))?? {
-            1 => 7,
-            2 => 6,
-            3 => 5,
-            4 => 4,
-            5 => 3,
-            6 => 2,
-            7 => 1,
-            8 => 0,
-            _ => return None
-        };
-
-        Some(Place { row, file })
     }
 
     /// returns None if it is an invalid Place, as in outside the board
@@ -136,16 +141,20 @@ impl Move {
         ret
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
-        if s.len() != 4 {
-            return None;
-        }
-        Some(Place::from_str(&s[0..2])?.goto(&Place::from_str(&s[2..4])?))
-    }
-
     pub fn into_promotion(mut self, promotion: Option<PieceTypes>) -> Self {
         self.promotion = promotion;
         self
+    }
+}
+
+impl TryFrom<&str> for Move {
+    type Error = ();
+    
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        if s.len() != 4 {
+            return Err(());
+        }
+        Ok(Place::try_from(&s[0..2])?.goto(&Place::try_from(&s[2..4])?))
     }
 }
 
@@ -865,10 +874,10 @@ impl std::fmt::Display for Position {
                     .filter(|p| p.place == Place { row, file })
                     .map(|p| p.into_char())
                     .next()
-                    .unwrap_or('.'));
+                    .unwrap_or('.'))?;
                 
             }
-            write!(f, "\n");
+            write!(f, "\n")?;
         }
         Ok(())
     }

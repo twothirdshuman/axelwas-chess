@@ -47,7 +47,7 @@ It is also possible to manually enter moves by their squares. Do note that the e
 ```rust
 fn main() {
     let position = Position::default();
-    let position = position.execute_move(Move::from_str("e2e4").unwrap()).unwrap();
+    let position = position.execute_move(Move::try_from("e2e4").unwrap()).unwrap();
 
     println!("{}", position);
 
@@ -59,7 +59,7 @@ If you wanna check what piece is on a specific square you can also do that.
 ```rust 
 fn main() {
     let position = Position::default();
-    let piece = position.piece_on(Place::from_str("e2").unwrap());
+    let piece = position.piece_on(Place::try_from("e2").unwrap());
     println!("{:?}", piece);
 }
 ```
