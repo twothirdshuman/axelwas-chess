@@ -269,7 +269,7 @@ impl Piece {
         moves.extend(self.place.goto(&top_left).in_between_and_end());
         moves.extend(self.place.goto(&top_right).in_between_and_end());
         moves.extend(self.place.goto(&bottom_left).in_between_and_end());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file.saturating_add(8)}).in_between_and_end());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(7), file: own_file.saturating_add(7)}).in_between_and_end());
         moves.extend(vec![top_left, top_right, bottom_left]);
 
         moves.into_iter().filter(|s| !s.outside_board()).collect()
@@ -280,10 +280,10 @@ impl Piece {
         let own_row = self.place.row;
         let own_file = self.place.file;
         
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(8), file: own_file}).in_between_and_end());
-        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_add(8)}).in_between_and_end());
-        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(8), file: own_file}).in_between_and_end());
-        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_sub(8)}).in_between_and_end());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_sub(7), file: own_file}).in_between_and_end());
+        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_add(7)}).in_between_and_end());
+        moves.extend(self.place.goto(&Place { row: own_row.saturating_add(7), file: own_file}).in_between_and_end());
+        moves.extend(self.place.goto(&Place { row: own_row, file: own_file.saturating_sub(7)}).in_between_and_end());
         
         moves.into_iter().filter(|s| !s.outside_board()).collect()
     }
